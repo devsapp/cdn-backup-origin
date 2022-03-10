@@ -1,5 +1,5 @@
 edition: 1.0.0
-name: compoent-test
+name: cdn-backup-source
 access: '{{ access }}'
 
 vars:
@@ -7,9 +7,9 @@ vars:
   environmentVariables: 
     SOURCE_URL: '{{ sourceUrl }}'
     BUCKET_NAME: '{{ bucketName }}'
-    WARMUP_DOMAIN: '{{ warmupDomain }}'
+    #WARMUP_DOMAIN: '{{ warmupDomain }}'
   service:
-    name: cdn_backup_service
+    name: '{{ serviceName }}'
     internetAccess: true
     role: '{{ roleArn }}'
     logConfig: auto

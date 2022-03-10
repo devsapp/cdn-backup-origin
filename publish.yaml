@@ -54,10 +54,15 @@ Parameters:
       type: string
       default: ''
       description: 函数执行时所扮演的角色
+    serviceName:
+      title: 服务名
+      type: string
+      default: cdn-appcenter-service
+      description: 应用的服务名称
     functionName:
       title: 函数名
       type: string
-      default: litemall
+      default: cdn-backup-source
       description: 应用的函数名称
     bucketName:
       title: OSS Bucket名字
