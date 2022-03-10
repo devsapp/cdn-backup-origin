@@ -1,0 +1,81 @@
+Type: Application
+Name: cdn-backup-source
+Provider:
+  - 阿里云
+Version: 0.0.1
+Description: 快速部署CDN备源信息同步项目到函数计算
+HomePage: https://github.com/devsapp/cdn-backup-source
+Tags:
+  - CDN
+  - Python
+Category: 其他
+Service:
+  函数计算:
+    Authorities:
+      - AliyunFCFullAccess
+Parameters:
+  type: object
+  additionalProperties: false # 不允许增加其他属性
+  required: # 必填项
+    - region
+    - role
+    - functionName
+    - bucketName
+    - sourceUrl
+    - cron
+  properties:
+    region:
+      title: 地域
+      type: string
+      default: cn-hangzhou
+      description: 创建应用所在的地区
+      enum:
+        - cn-beijing
+        - cn-hangzhou
+        - cn-shanghai
+        - cn-qingdao
+        - cn-zhangjiakou
+        - cn-huhehaote
+        - cn-shenzhen
+        - cn-chengdu
+        - cn-hongkong
+        - ap-southeast-1
+        - ap-southeast-2
+        - ap-southeast-3
+        - ap-southeast-5
+        - ap-northeast-1
+        - eu-central-1
+        - eu-west-1
+        - us-west-1
+        - us-east-1
+        - ap-south-1
+    roleArn:
+      title: 服务角色
+      type: string
+      default: ''
+      description: 函数执行时所扮演的角色
+    functionName:
+      title: 函数名
+      type: string
+      default: litemall
+      description: 应用的函数名称
+    bucketName:
+      title: OSS Bucket名字
+      type: string
+      default: ''
+      description: '备源结果存储到指定的OSS Bucket'
+    sourceUrl:
+      title: 源站地址
+      type: string
+      default: ''
+      description: 指定源站地址
+    warmupDomain:
+      title: 备源地址
+      type: string
+      default: ''
+      description: 备源地址
+    cron:
+      title: 定时触发时间
+      type: string
+      default: '0 0 0 ? * *'
+      description: 指定定时触发时间
