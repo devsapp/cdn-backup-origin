@@ -8,7 +8,7 @@ HomePage: https://github.com/devsapp/cdn-backup-source
 Tags:
   - CDN
   - Python
-Category: CDN
+Category: Web框架
 Service:
   函数计算:
     Authorities:
