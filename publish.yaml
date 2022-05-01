@@ -2,7 +2,7 @@ Type: Application
 Name: cdn-backup-source
 Provider:
   - 阿里云
-Version: 0.0.2
+Version: 0.0.3
 Description: 快速部署CDN备源信息同步项目到函数计算
 HomePage: https://github.com/devsapp/cdn-backup-source
 Tags:
