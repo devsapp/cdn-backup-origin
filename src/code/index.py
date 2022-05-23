@@ -1,13 +1,17 @@
 # -*- coding: utf-8 -*-
 
-import logging, os, re, time
-import urllib.parse, urllib.request
+import logging
+import os
+import re
+import time
+import urllib.parse
+import urllib.request
 from functools import reduce
 import oss2
 from aliyunsdkcore.client import AcsClient
 from aliyunsdkcore.request import CommonRequest
 from aliyunsdkcore.auth.credentials import AccessKeyCredential
-from aliyunsdkcore.auth.credentials import StsTokenCredential  
+from aliyunsdkcore.auth.credentials import StsTokenCredential
 
 LOGGER = logging.getLogger()
 
@@ -113,9 +117,16 @@ def download_file(src_url, dist_path):
 '''
 
 
-def parse_and_download_page(url):
+def parse_and_download_page(url, level):
     global downloaded_list
+    global max_level
 
+    # # 达到最大抓取层级，终止递归
+    if max_level > 0 and level > max_level:
+        LOGGER.info("max fetch level {0} reached".format(max_level))
+        return
+    
+    level += 1
     url_dict = parse_url(url)
     domain = url_dict['domain']
 
@@ -154,9 +165,11 @@ def parse_and_download_page(url):
         # http://www.baidu/com/static/index.js
         # static/js/index.js
         if resource_url.startswith('../'):
-            resource_url = urllib.parse.urljoin(url_dict['full_path'], resource_url)
+            resource_url = urllib.parse.urljoin(
+                url_dict['full_path'], resource_url)
         elif resource_url.startswith('./'):
-            resource_url = urllib.parse.urljoin(url_dict['full_path'], resource_url)
+            resource_url = urllib.parse.urljoin(
+                url_dict['full_path'], resource_url)
         elif resource_url.startswith('//'):
             resource_url = 'https:' + resource_url
         elif resource_url.startswith('/'):
@@ -189,7 +202,8 @@ def parse_and_download_page(url):
 
         # 递归解析 html/htm/shtml
         if resource_url_dict['ext'] in ['html', 'htm', 'shtml']:
-            parse_and_download_page(resource_url)
+            LOGGER.info("parse_and_download_page, level {}".format(level))
+            parse_and_download_page(resource_url, level)
 
         if not os.path.exists(resource_dir):
             os.makedirs(resource_dir)
@@ -219,11 +233,14 @@ def handler(event, context):
     global downloaded_list
     downloaded_list = []
 
+    global max_level
+    max_level = int(os.environ['MAX_FETCH_LEVEL'])
+
     # 备份源站（域名入口）
     # url = 'http://www.cgbchina.com.cn/index.html'
     # url = 'http://www.peersafe.cn/index.html'
-    url = os.environ['SOURCE_URL']
-    parse_and_download_page(url)
+    url = os.environ['ORIGIN']
+    parse_and_download_page(url, 0)
     LOGGER.info('总共下载了 %d 个资源' % len(downloaded_list))
 
     # 解析下载网页后备份和预热
@@ -234,37 +251,51 @@ def handler(event, context):
             creds.access_key_secret,
             creds.security_token)
         # 备份目标到OSS
-        bucket_name = os.environ['BUCKET_NAME']
-        endpoint = 'oss-' + context.region + '-internal.aliyuncs.com'
+        backup_origin = os.environ['BACKUP_ORIGIN']
+        m = re.search(r'(.*).oss-(.*).aliyuncs.com', backup_origin)
+        if m is None:
+            LOGGER.error(
+                "Backup origin {} is not a valid oss domain".format(backup_origin))
+            raise ValueError(
+                "Backup origin {} is not a valid oss domain".format(backup_origin))
+
+        bucket_name = m.group(1)
+        region = m.group(2)
+        endpoint = 'oss-' + region + '.aliyuncs.com:'
         # endpoint = 'oss-cn-hangzhou-internal.aliyuncs.com'
         bucket = oss2.Bucket(oss_auth, endpoint, bucket_name)
         # backup
         for tmp_file in downloaded_list:
             # /tmp/www.cgbchina.com.cn/index.html -> www.cgbchina.com.cn/index.html
             object_name = tmp_file[5:]
-            LOGGER.info("start to backup matched file = {}".format(object_name))
-            bucket.put_object_from_file(object_name, tmp_file)
+            LOGGER.info(
+                "start to backup matched file = {}".format(object_name))
+            if bucket is not None:
+                bucket.put_object_from_file(object_name, tmp_file)
 
             # 预热目标到CDN域名
-            if "WARMUP_DOMAIN" in os.environ and os.environ["WARMUP_DOMAIN"] != 'dummy': 
+            if "WARMUP_DOMAIN" in os.environ:
                 cdn_domain = os.environ["WARMUP_DOMAIN"]
                 cdn_auth = StsTokenCredential(
                     creds.access_key_id,
                     creds.access_key_secret,
                     creds.security_token)
-                client = AcsClient(region_id=context.region, credential=cdn_auth)
-            
+                client = AcsClient(region_id=context.region,
+                                   credential=cdn_auth)
+
                 request = CommonRequest()
                 request.set_accept_format('json')
                 request.set_domain('cdn.aliyuncs.com')
                 request.set_method('POST')
-                request.set_protocol_type('https') # https | http
+                request.set_protocol_type('https')  # https | http
                 request.set_version('2018-05-10')
                 request.set_action_name('PushObjectCache')
-                cdn_url = cdn_domain + urllib.parse.urlparse('http://' + object_name).path
+                cdn_url = cdn_domain + \
+                    urllib.parse.urlparse('http://' + object_name).path
                 request.add_query_param('ObjectPath', cdn_url)
-                
-                response = client.do_action(request)
-                LOGGER.info('PushObjectCache: ' + cdn_url + ', and returned: ' + str(response, encoding = 'utf-8'))
 
-    return 'success'
+                response = client.do_action(request)
+                LOGGER.info('PushObjectCache: ' + cdn_url +
+                            ', and returned: ' + str(response, encoding='utf-8'))
+
+    return dict(download_num=len(downloaded_list), success=True)

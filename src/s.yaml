@@ -1,19 +1,18 @@
 edition: 1.0.0
-name: cdn-backup-source
+name: cdn-backup-origin
 access: '{{ access }}'
 
 vars:
   region: '{{ region }}'
   environmentVariables: 
-    SOURCE_URL: '{{ sourceUrl }}'
-    BUCKET_NAME: '{{ bucketName }}'
-    #WARMUP_DOMAIN: '{{ warmupDomain }}'
+    ORIGIN: '{{ origin }}'
+    BACK_ORIGIN: '{{ backupOrigin }}'
+    WARMUP_DOMAIN: '{{ warmupDomain }}'
   service:
     name: '{{ serviceName }}'
     internetAccess: true
     role: '{{ roleArn }}'
     logConfig: auto
-  cron: '{{ cron }}'
 
 services:
   cron_cdn_backup:
@@ -22,18 +21,14 @@ services:
       region: ${vars.region}
       service: ${vars.service}
       function:
+        name: '{{ functionName }}'
         environmentVariables: ${vars.environmentVariables}
         handler: index.handler
         instanceConcurrency: 1
         instanceType: e1
         memorySize: 512
         runtime: python3
-        timeout: 6000
-        name: '{{ functionName }}'
-        asyncConfiguration:
-          maxAsyncEventAgeInSeconds: 172800
-          maxAsyncRetryAttempts: 1
-          statefulInvocation: false
+        timeout: 1200
         codeUri: ./code
       triggers:
         - name: cron
@@ -41,5 +36,5 @@ services:
           qualifier: LATEST
           config:
             payload: ''
-            cronExpression: 'CRON_TZ=Asia/Shanghai ${vars.cron}'
-            enable: true
+            cronExpression: '{{ cronExpression }}'
+            enable: '{{ enable }}'

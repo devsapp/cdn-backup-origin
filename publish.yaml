@@ -17,12 +17,10 @@ Parameters:
   type: object
   additionalProperties: false # 不允许增加其他属性
   required: # 必填项
-    - region
     - role
-    - functionName
-    - bucketName
-    - sourceUrl
-    - cron
+    - origin
+    - backupOrigin
+    - cronExpression
   properties:
     region:
       title: 地域
@@ -54,33 +52,50 @@ Parameters:
       type: string
       default: ''
       description: 函数执行时所扮演的角色
+      x-roleArn:
+        type: object
+        name: cdnbackuprole
+        pattern: '^acs:ram::[0-9]*:role/.*$'
+        service: fc
+        description: 应用所属的函数计算服务配置的 role, 请提前创建好对应的 role, 授信函数计算服务, 并配置好 AliyunOSSFullAccess 和 AliyunFCDefaultRolePolicy policy。
+        authorities:
+          - AliyunOSSFullAccess
+          - AliyunFCDefaultRolePolicy
     serviceName:
       title: 服务名
       type: string
-      default: cdn-appcenter-service
+      default: cdn-backup-origin
       description: 应用的服务名称
     functionName:
       title: 函数名
       type: string
-      default: cdn-backup-source
+      default: cdn-backup-origin
       description: 应用的函数名称
-    bucketName:
-      title: OSS Bucket名字
-      type: string
-      default: ''
-      description: '备源结果存储到指定的OSS Bucket'
-    sourceUrl:
+    origin:
       title: 源站地址
       type: string
-      default: ''
       description: 指定源站地址
-    warmupDomain:
+    backupOrigin:
       title: 备源地址
       type: string
       default: ''
-      description: 备源地址
-    cron:
+      description: '仅支持OSS Bucket域名, 例如: fc-layers.oss-cn-hangzhou.aliyuncs.com'
+    warmupDomain:
+      title: 预热域名
+      type: string
+      description: 抓取源站并预热到CDN节点
+    # maxFetchLevel:
+    #   title: 最大抓取层级
+    #   type: number
+    #   default: 0
+    #   description: 最大抓取层级
+    cronExpression:
       title: 定时触发时间
       type: string
       default: '0 0 0 ? * *'
       description: 指定定时触发时间
+    enable:
+      title: 是否启用任务
+      type: bool
+      default: true
+      description: 是否启用任务
