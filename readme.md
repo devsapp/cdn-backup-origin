@@ -7,7 +7,7 @@
   <a href="http://www.devsapp.cn/details.html?name=cdn-backup-origin" class="ml-1">
     <img src="http://editor.devsapp.cn/icon?package=cdn-backup-origin&type=packageVersion">
   </a>
-  <a href="http://www.devsapp.cn/details.html?name=cdn-backup-source" class="ml-1">
+  <a href="http://www.devsapp.cn/details.html?name=cdn-backup-origin" class="ml-1">
     <img src="http://editor.devsapp.cn/icon?package=cdn-backup-origin&type=packageDownload">
   </a>
 </p>
