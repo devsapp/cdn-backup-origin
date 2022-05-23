@@ -234,7 +234,10 @@ def handler(event, context):
     downloaded_list = []
 
     global max_level
-    max_level = int(os.environ['MAX_FETCH_LEVEL'])
+    if "MAX_FETCH_LEVEL" in os.environ:
+        max_level = int(os.environ['MAX_FETCH_LEVEL'])
+    else:
+        max_level = 0
 
     # 备份源站（域名入口）
     # url = 'http://www.cgbchina.com.cn/index.html'
@@ -274,7 +277,7 @@ def handler(event, context):
                 bucket.put_object_from_file(object_name, tmp_file)
 
             # 预热目标到CDN域名
-            if "WARMUP_DOMAIN" in os.environ:
+            if "WARMUP_DOMAIN" in os.environ and os.environ["WARMUP_DOMAIN"] != "unknown":
                 cdn_domain = os.environ["WARMUP_DOMAIN"]
                 cdn_auth = StsTokenCredential(
                     creds.access_key_id,
