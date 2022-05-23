@@ -21,9 +21,9 @@
 <table>
 
 ## 前期准备
-| 服务/业务 | 函数计算           | OSS                 |
-| --------- | ------------------ | ------------------- |
-| 权限/策略 | AliyunFCFullAccess | AliyunOSSFullAccess |
+| 服务/业务 | 函数计算           |
+| --------- | ------------------ |
+| 权限/策略 | AliyunFCFullAccess |
 
 </table>
 
@@ -57,17 +57,17 @@
 ![alt](https://img.alicdn.com/imgextra/i1/O1CN01copy2j1n5uX8UVRGh_!!6000000005039-2-tps-1474-938.png)
 
 ## 初始化参数
-| 参数名称       | 参数类型 | 是否必填 | 例子                                             | 参数含义                                                                                               |
-| -------------- | -------- | -------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
-| serviceName    | String   | 选填     | cdn-backup-origin                                | 函数服务名称名                                                                                         |
-| functionName   | String   | 选填     | cdn-backup-origin                                | 函数名称                                                                                               |
-| roleArn        | String   | 必填     | acs:ram::123456:role/aliyuncdnserverlessdevsrole | 函数执行角色                                                                                           |
-| origin         | String   | 必填     | http://www.peersafe.cn/index.html                | 源站地址                                                                                               |
-| backupOrigin   | String   | 必填     | cdn-backup-bucket.oss-cn-beijing.aliyuncs.com    | 备源地址，仅支持OSS Bucket域名                                                                         |
-| warmupDomain   | String   | 选填     | cdn-backup-bucket.oss-cn-beijing.aliyuncs.com    | 预热 CDN 域名                                                                                          |
-| cronExpression | String   | 必填     | '@every 60m'                                     | 定时触发时间，参考 [函数计算](https://help.aliyun.com/document_detail/171746.html#section-gbz-k3r-vum) |
-| warmupDomain   | String   | 选填     | warmup.com                                       | [CDN 预热域名](https://help.aliyun.com/document_detail/91161.html)                                     |
-| enable         | Boolean  | 选填     | true                                             | 是否启用任务，默认值true。关闭后函数不再定时执行，不会再产生费用                                       |
+| 参数名称       | 参数类型 | 是否必填 | 例子                                               | 参数含义                                                                                               |
+| -------------- | -------- | -------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| serviceName    | String   | 选填     | cdn-backup-origin                                  | 函数服务名称名                                                                                         |
+| functionName   | String   | 选填     | cdn-backup-origin                                  | 函数名称                                                                                               |
+| roleArn        | String   | 必填     | 'acs:ram::123456:role/aliyuncdnserverlessdevsrole' | 函数执行角色                                                                                           |
+| origin         | String   | 必填     | http://www.peersafe.cn/index.html                  | 源站地址                                                                                               |
+| backupOrigin   | String   | 必填     | cdn-backup-bucket.oss-cn-beijing.aliyuncs.com      | 备源地址，仅支持OSS Bucket域名                                                                         |
+| warmupDomain   | String   | 选填     | cdn-backup-bucket.oss-cn-beijing.aliyuncs.com      | 预热 CDN 域名                                                                                          |
+| cronExpression | String   | 必填     | '@every 60m'                                       | 定时触发时间，参考 [函数计算](https://help.aliyun.com/document_detail/171746.html#section-gbz-k3r-vum) |
+| warmupDomain   | String   | 选填     | warmup.com                                         | [CDN 预热域名](https://help.aliyun.com/document_detail/91161.html)                                     |
+| enable         | Boolean  | 选填     | true                                               | 是否启用任务，默认值true。关闭后函数不再定时执行，不会再产生费用                                       |
 
 ## 执行效果
 函数计算控制台查看任务历史
