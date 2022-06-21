@@ -12,7 +12,6 @@ vars:
     name: '{{ serviceName }}'
     internetAccess: true
     role: '{{ roleArn }}'
-    logConfig: auto
 
 services:
   cron_cdn_backup:
