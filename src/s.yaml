@@ -38,4 +38,4 @@ services:
           config:
             payload: ''
             cronExpression: '{{ cronExpression }}'
-            enable: '{{ enable }}'
+            enable: {{ enable }}
