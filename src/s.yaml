@@ -7,7 +7,9 @@ vars:
   environmentVariables: 
     ORIGIN: '{{ origin }}'
     BACKUP_ORIGIN: '{{ backupOrigin }}'
+    {{if warmupDomain !== ''}}
     WARMUP_DOMAIN: '{{ warmupDomain }}'
+    {{/if}}
   service:
     name: '{{ serviceName }}'
     internetAccess: true
