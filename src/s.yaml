@@ -18,6 +18,9 @@ vars:
 services:
   cron_cdn_backup:
     component: devsapp/fc
+    actions:       # 自定义执行逻辑，关于actions 的使用，可以参考：https://www.serverless-devs.com/serverless-devs/yaml#行为描述
+      pre-deploy: # 在deploy之前运行
+        - component: fc build --use-docker
     props:
       region: ${vars.region}
       service: ${vars.service}
