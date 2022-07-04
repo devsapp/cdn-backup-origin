@@ -69,7 +69,6 @@ def parse_url(url):
 解析URL 页面
 '''
 def parse_page(page_path):
-    LOGGER.info('> %s parse_page' % (page_path))
     if not page_path.endswith(('.html', '.htm', '.shtml')) \
             or not os.path.exists(page_path):
         LOGGER.error('> %s 网站内容不读取' % (page_path))
