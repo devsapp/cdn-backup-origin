@@ -8,6 +8,7 @@ import urllib.parse
 import urllib.request
 from functools import reduce
 import oss2
+from bs4 import BeautifulSoup
 from aliyunsdkcore.client import AcsClient
 from aliyunsdkcore.request import CommonRequest
 from aliyunsdkcore.auth.credentials import AccessKeyCredential
@@ -22,7 +23,7 @@ LOGGER = logging.getLogger()
 # ?表示懒惰匹配，尽可能匹配少的字符
 # ((?:/[a-zA-Z0-9.]*?)*)
 # ((?:/[a-zA-Z0-9.]*)*?)
-REG_URL = r'^(https?://|//)?((?:[a-zA-Z0-9-_]+\.)+(?:[a-zA-Z0-9-:]+))((?:/[-.a-zA-Z0-9]*?)*)((?<=/)[-_a-zA-Z0-9]+(?:\.([a-zA-Z0-9]+))+)?((?:\?[a-zA-Z0-9%&=]*)*)$'
+REG_URL = r'^(https?://|//)?((?:[a-zA-Z0-9-_]+\.)+(?:[a-zA-Z0-9-_:]+))((?:/[-.a-zA-Z0-9_]*?)*)((?<=/)[-_a-zA-Z0-9]+(?:\.([a-zA-Z0-9]+))+)?((?:\?[a-zA-Z0-9%&=]*)*)$'
 REG_RESOURCE_TYPE = r'(?:href|src|data\-original|data\-src)=["\'](.+?\.(?:html|htm|shtml|js|css|jpg|jpeg|png|gif|svg|ico|ttf|woff2|asp|jsp|php|perl|cgi))[a-zA-Z0-9\?\=\.]*["\']'
 
 reg_url = re.compile(REG_URL)
@@ -31,11 +32,14 @@ reg_resource = re.compile(REG_RESOURCE_TYPE, re.S)
 # 去重，避免重复下载
 downloaded_list = []
 
+def valild_resource(resource):
+    if resource is not None and resource != "" and resource != '/':
+        return True
+    return False
+
 '''
 解析URL地址
 '''
-
-
 def parse_url(url):
     if not url:
         return
@@ -64,11 +68,11 @@ def parse_url(url):
 '''
 解析URL 页面
 '''
-
-
 def parse_page(page_path):
+    LOGGER.info('> %s parse_page' % (page_path))
     if not page_path.endswith(('.html', '.htm', '.shtml')) \
             or not os.path.exists(page_path):
+        LOGGER.error('> %s 网站内容不读取' % (page_path))
         return
 
     resource_list = []
@@ -76,22 +80,37 @@ def parse_page(page_path):
         # 分析网页内容
         content = f.read()
         LOGGER.info('> %s 网站内容读取完毕，内容长度：%d' % (page_path, len(content)))
+        soup = BeautifulSoup(content, 'html.parser')
+        for link in soup.findAll():
+            if valild_resource(link.get('href')):
+                resource_list.append(link.get('href'))
+                LOGGER.info('> %s 网站链接读取完成' % (link.get('href')))
+            if valild_resource(link.get('src')):
+                resource_list.append(link.get('src'))
+                LOGGER.info('> %s 网站链接读取完成' % (link.get('src')))
+            if valild_resource(link.get('data-src')):
+                resource_list.append(link.get('data-src'))
+                LOGGER.info('> %s 网站链接读取完成' % (link.get('data-src')))
+            if valild_resource(link.get('data-original')):
+                resource_list.append(link.get('data-original'))
+                LOGGER.info('> %s 网站链接读取完成' % (link.get('data-original')))
+
 
         # 解析网页内容，获取有效的链接
-        content_list = re.split(r'\s+', content)
-        for line in content_list:
-            res_list = reg_resource.findall(line)
-            if res_list is not None:
-                resource_list = resource_list + res_list
+        # content_list = re.split(r'\s+', content)
+        # for line in content_list:
+        #     # print(f'content_list {line}')
+        #     res_list = reg_resource.findall(line)
+        #     if len(res_list) > 0:
+        #         resource_list = resource_list + res_list
+        #         LOGGER.info('> %s 网站链接读取完成' % (res_list))
     # 去重
-    return reduce(lambda x, y: y in x and x or x + [y], resource_list, [])
+    return list(set(resource_list))
 
 
 '''
 下载文件
 '''
-
-
 def download_file(src_url, dist_path):
     try:
         response = urllib.request.urlopen(src_url)
@@ -115,8 +134,6 @@ def download_file(src_url, dist_path):
 '''
 解析和备份URL 相关静态资源
 '''
-
-
 def parse_and_download_page(url, level):
     global downloaded_list
     global max_level
@@ -155,7 +172,6 @@ def parse_and_download_page(url, level):
     resource_list = parse_page(page_path)
     if not resource_list:
         return
-
     # 下载资源，要区分目录，不存在的话就创建
     for resource_url in resource_list:
         # ../js/js
@@ -194,7 +210,10 @@ def parse_and_download_page(url, level):
             continue
 
         resource_dir = domain_dir + resource_url_dict['path']
-        resource_path = resource_dir + resource_url_dict['file_name']
+        if resource_url_dict['file_name'] is None:
+            resource_path = resource_dir + 'index.html'
+        else:
+            resource_path = resource_dir + resource_url_dict['file_name']
 
         # 已经下载过的内容忽略
         if resource_path in downloaded_list:
