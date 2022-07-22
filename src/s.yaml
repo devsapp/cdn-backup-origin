@@ -34,6 +34,10 @@ services:
         runtime: python3
         timeout: 1200
         codeUri: ./code
+        asyncConfiguration:
+          maxAsyncEventAgeInSeconds: 1200
+          maxAsyncRetryAttempts: 0
+          statefulInvocation: true
       triggers:
         - name: cron
           type: timer

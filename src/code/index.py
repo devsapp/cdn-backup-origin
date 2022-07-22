@@ -48,20 +48,21 @@ def parse_url(url):
     # ('http://', '192.168.1.109:8080', '/abc/images/111/', 'index.html', 'html', '?a=1&b=2')
     if res is not None:
         path = res.group(3)
-        full_path = res.group(1) + res.group(2) + res.group(3)
+        protocol = res.group(1) if res.group(1) is not None else 'http://'
+        full_path = protocol + res.group(2) + res.group(3)
 
         if not path.endswith('/'):
             path = path + '/'
             full_path = full_path + '/'
         return dict(
-            base_url=res.group(1) + res.group(2),
-            full_path=full_path,
-            protocol=res.group(1),
-            domain=res.group(2),
-            path=path,
-            file_name=res.group(4),
-            ext=res.group(5),
-            params=res.group(6)
+            base_url = protocol + res.group(2),
+            full_path = full_path,
+            protocol = protocol,
+            domain = res.group(2),
+            path = path,
+            file_name = res.group(4),
+            ext = res.group(5),
+            params = res.group(6)
         )
 
 
