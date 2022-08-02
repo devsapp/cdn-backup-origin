@@ -32,7 +32,7 @@ services:
         instanceType: e1
         memorySize: 512
         runtime: python3
-        timeout: 1200
+        timeout: 3600
         codeUri: ./code
         asyncConfiguration:
           maxAsyncEventAgeInSeconds: 1200
