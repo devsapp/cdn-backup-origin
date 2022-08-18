@@ -5,6 +5,7 @@
 import logging
 import os
 import re
+import sys
 import threading
 import shutil
 import time
@@ -178,7 +179,11 @@ def parse_root_resource_url(root_url: str, max_level: int, download_queue: Queue
         page_name = ''
         if url_dict['file_name'] is None:
             page_name = 'index.html'
-            url = url_dict['full_path'] + page_name
+            try:
+                url = url_dict['full_path'] + page_name
+                urllib.request.urlopen(url)
+            except Exception as e:
+                url = url_dict['full_path']
         else:
             page_name = url_dict['file_name']
 
@@ -367,7 +372,7 @@ def handler(event, context):
     if "MAX_FETCH_LEVEL" in os.environ:
         max_level = int(os.environ['MAX_FETCH_LEVEL'])
     else:
-        max_level = 0
+        max_level = sys.getrecursionlimit() - 50 # 防止递归过深，50是经验型的取值
     
     bucket, client = init_bucket_and_client(context)
 
