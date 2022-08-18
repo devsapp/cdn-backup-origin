@@ -360,8 +360,9 @@ def handler(event, context):
     # 定时触发器，事件内容没啥实际意义
     LOGGER.info(event)
     # 每次任务均需重置
-    global path_set
+    global path_set, DOWNLOADED_FILE_LIST
     path_set.clear()
+    DOWNLOADED_FILE_LIST.clear()
 
     if "MAX_FETCH_LEVEL" in os.environ:
         max_level = int(os.environ['MAX_FETCH_LEVEL'])
