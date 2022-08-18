@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+# -*- coding: utf-8 -*-
+
 import logging
 import os
 import re
@@ -373,6 +375,9 @@ def handler(event, context):
     # url = 'http://www.cgbchina.com.cn/index.html'
     # url = 'http://www.peersafe.cn/index.html'
     url = os.environ['ORIGIN']
+    root_path = urllib.parse.urljoin(LOCAL_PATH, parse_url(url)['domain'])
+    if os.path.exists(root_path):
+        shutil.rmtree(root_path)
 
     download_queue = Queue()
     upload_queue = Queue()
