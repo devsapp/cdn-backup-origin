@@ -19,10 +19,22 @@ from aliyunsdkcore.auth.credentials import AccessKeyCredential
 from aliyunsdkcore.auth.credentials import StsTokenCredential
 from queue import Queue
 
+class SharedCounter:
+    def __init__(self, val = 0):
+        self.__val = val
+        self.__lock = threading.Lock()
+
+    def incr(self):
+        with self.__lock:
+            self.__val += 1
+    
+    def get(self):
+        with self.__lock:
+            return self.__val
 
 LOGGER = logging.getLogger()
 
-DOWNLOADED_FILE_LIST = list()
+DONWLOADED_COUNTER = SharedCounter()
 path_set = set()
 
 LOCAL_PATH = '/tmp/'
@@ -154,7 +166,7 @@ def download_file(src_url, dist_path):
         f = open(dist_path, 'wb')
         f.write(data)
         f.close()
-        DOWNLOADED_FILE_LIST.append(src_url) # append 线程安全
+        DONWLOADED_COUNTER.incr()
         # LOGGER.info('>>>: %s 下载成功' % src_url)
 
     except Exception as e:
@@ -328,6 +340,7 @@ def print_excute_time(func):
 
 def init_bucket_and_client(context):
     creds = context.credentials
+    oss2.defaults.connection_pool_size = CONSUMER_NUM
 
     oss_auth = oss2.StsAuth(
         creds.access_key_id,
@@ -365,9 +378,9 @@ def handler(event, context):
     # 定时触发器，事件内容没啥实际意义
     LOGGER.info(event)
     # 每次任务均需重置
-    global path_set, DOWNLOADED_FILE_LIST
+    global path_set, DONWLOADED_COUNTER
     path_set.clear()
-    DOWNLOADED_FILE_LIST.clear()
+    DONWLOADED_COUNTER = SharedCounter()
 
     if "MAX_FETCH_LEVEL" in os.environ:
         max_level = int(os.environ['MAX_FETCH_LEVEL'])
@@ -408,4 +421,4 @@ def handler(event, context):
     upload_queue.join()
     LOGGER.info("Upload Queue Join Done!")
 
-    return dict(download_num=len(set(DOWNLOADED_FILE_LIST)), success=True, remain_num=upload_queue.qsize())
+    return dict(download_num=DONWLOADED_COUNTER.get(), success=True, remain_num=upload_queue.qsize())
