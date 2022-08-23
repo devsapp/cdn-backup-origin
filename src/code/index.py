@@ -34,8 +34,12 @@ class SharedCounter:
 
 LOGGER = logging.getLogger()
 
-DONWLOADED_COUNTER = SharedCounter()
+downloaded_counter, uploaded_counter = SharedCounter(), SharedCounter()
 path_set = set()
+parse_status = 0
+download_queue, upload_queue = Queue(), Queue()
+cdn_client = None
+oss_bucket = None
 
 LOCAL_PATH = '/tmp/'
 
@@ -166,7 +170,7 @@ def download_file(src_url, dist_path):
         f = open(dist_path, 'wb')
         f.write(data)
         f.close()
-        DONWLOADED_COUNTER.incr()
+        downloaded_counter.incr()
         # LOGGER.info('>>>: %s 下载成功' % src_url)
 
     except Exception as e:
@@ -175,7 +179,18 @@ def download_file(src_url, dist_path):
 
     return True
 
+# a decorator for LOGGER.info the excute time of a function
+def print_excute_time(func):
+    def wrapper(*args, **kwargs):
+        local_time = time.time()
+        ret = func(*args, **kwargs)
+        LOGGER.info('current Function [%s] excute time is %.2fs' %
+                    (func.__name__, time.time() - local_time))
+        return ret
 
+    return wrapper
+
+@print_excute_time
 def parse_root_resource_url(root_url: str, max_level: int, download_queue: Queue) -> dict:
 
     def parse_resource_url(url, level):
@@ -207,7 +222,7 @@ def parse_root_resource_url(root_url: str, max_level: int, download_queue: Queue
         # 已保存路径，则退出递归
         # url 必然以 html 等为结尾
         if page_path not in path_set and download_file(url, page_path):
-            download_queue.put((url, page_path))
+            upload_queue.put(page_path) # 已经下载，直接放到上传队列
             path_set.add(page_path)
         else:
             return
@@ -270,8 +285,9 @@ def parse_root_resource_url(root_url: str, max_level: int, download_queue: Queue
                 # LOGGER.info("parse_resource_url, level {}".format(level))
                 parse_resource_url(resource_url, level)
 
-            path_set.add(resource_path)
-            download_queue.put((resource_url, resource_path))
+            if resource_path not in path_set:
+                path_set.add(resource_path)
+                download_queue.put((resource_url, resource_path))
 
     parse_resource_url(root_url, 0)
 
@@ -302,10 +318,11 @@ def consumer(file_queue: Queue, bucket: oss2.Bucket, client: AcsClient):
         # LOGGER.info(
         #     "start to backup matched file = {}".format(object_name))
         if not os.path.exists(file_path):
-            LOGGER.error(f"备份文件{file_path}不存在")
+            LOGGER.error(f"备份文件不存在: {file_path}")
         if bucket is not None and os.path.exists(file_path):
             # LOGGER.info(f"备份成功:{object_name}")
             bucket.put_object_from_file(object_name, file_path)
+            uploaded_counter.incr()
 
         # 预热目标到CDN域名
         if client is not None and "WARMUP_DOMAIN" in os.environ and os.environ["WARMUP_DOMAIN"] != "unknown":
@@ -325,18 +342,6 @@ def consumer(file_queue: Queue, bucket: oss2.Bucket, client: AcsClient):
             LOGGER.info('PushObjectCache: ' + cdn_url +
                         ', and returned: ' + str(response, encoding='utf-8'))
         file_queue.task_done()
-
-
-# a decorator for LOGGER.info the excute time of a function
-def print_excute_time(func):
-    def wrapper(*args, **kwargs):
-        local_time = time.time()
-        ret = func(*args, **kwargs)
-        LOGGER.info('current Function [%s] excute time is %.2fs' %
-                    (func.__name__, time.time() - local_time))
-        return ret
-
-    return wrapper
 
 def init_bucket_and_client(context):
     creds = context.credentials
@@ -371,24 +376,29 @@ def init_bucket_and_client(context):
                            credential=cdn_auth)
     return bucket, client
 
+def initialize(context):
+    global oss_bucket, cdn_client
+    oss_bucket, cdn_client = init_bucket_and_client(context)
+
 
 
 @print_excute_time
 def handler(event, context):
     # 定时触发器，事件内容没啥实际意义
     LOGGER.info(event)
-    # 每次任务均需重置
-    global path_set, DONWLOADED_COUNTER
-    path_set.clear()
-    DONWLOADED_COUNTER = SharedCounter()
 
+    # 每次任务均需重置
+    global parse_status, download_queue, upload_queue, downloaded_counter, uploaded_counter, path_set
+    parse_status = 0
+    path_set.clear()
+    downloaded_counter, uploaded_counter = SharedCounter(), SharedCounter()
+    download_queue, upload_queue = Queue(), Queue()
+
+    # 网站递归解析最大深度
     if "MAX_FETCH_LEVEL" in os.environ:
         max_level = int(os.environ['MAX_FETCH_LEVEL'])
     else:
         max_level = sys.getrecursionlimit() - 50 # 防止递归过深，50是经验型的取值
-    
-    bucket, client = init_bucket_and_client(context)
-
 
     # 备份源站（域名入口）
     # url = 'http://www.cgbchina.com.cn/index.html'
@@ -398,10 +408,10 @@ def handler(event, context):
     if os.path.exists(root_path):
         shutil.rmtree(root_path)
 
-    download_queue = Queue()
-    upload_queue = Queue()
-
+    global oss_bucket, cdn_client
+    # 主线程解析网站
     parse_root_resource_url(url, max_level, download_queue)
+    parse_status = 1
 
     # 开始生产
     for idx in range(PRODUCER_NUM):
@@ -411,7 +421,7 @@ def handler(event, context):
 
     # 开始消费
     for _ in range(CONSUMER_NUM):
-        t = threading.Thread(target=consumer, args=(upload_queue, bucket, client))
+        t = threading.Thread(target=consumer, args=(upload_queue, oss_bucket, cdn_client))
         t.setDaemon(True)
         t.start()
     
@@ -420,5 +430,10 @@ def handler(event, context):
     LOGGER.info("Download Queue Join Done!")
     upload_queue.join()
     LOGGER.info("Upload Queue Join Done!")
+    LOGGER.info(f"已下载资源数量:{downloaded_counter.get()}, 已上传OSS资源数量:{uploaded_counter.get()}")
+    return dict(download_num=downloaded_counter.get(), success=True)
 
-    return dict(download_num=DONWLOADED_COUNTER.get(), success=True, remain_num=upload_queue.qsize())
+def preStop(context):
+    global cdn_client
+    if cdn_client:
+        del cdn_client
