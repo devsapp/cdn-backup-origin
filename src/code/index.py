@@ -399,8 +399,6 @@ def handler(event, context):
         max_level = sys.getrecursionlimit() - 50 # 防止递归过深，50是经验型的取值
 
     # 备份源站（域名入口）
-    # url = 'http://www.cgbchina.com.cn/index.html'
-    # url = 'http://www.peersafe.cn/index.html'
     url = os.environ['ORIGIN']
     root_path = urllib.parse.urljoin(LOCAL_PATH, parse_url(url)['domain'])
     if os.path.exists(root_path):
